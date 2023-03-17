@@ -1,0 +1,7 @@
+__pycache__/
+venv/
+preview.png
+*.flac
+*.mp3
+*.log
+test_rich.py
