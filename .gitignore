@@ -5,3 +5,6 @@ preview.png
 *.mp3
 *.log
 test_rich.py
+build/
+*.egg-info/
+dist/

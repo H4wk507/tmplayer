@@ -4,16 +4,24 @@ Minimalist music player for audio files with a pleasant UI.
 
 ## Installation
 
+### PyPI
+
+```
+pip install tmpl2
+```
+
+### Manual
+
 1. Clone the repository
 
 ```
 git clone https://github.com/H4wk507/tmpl.git
 ```
 
-2. Go into the directory and install the dependencies
+2. Go into the directory and install
 
 ```
-cd tmpl && pip install -r requirements.txt
+cd tmpl && pip install .
 ```
 
 ## Usage
@@ -23,7 +31,7 @@ Pass in directories/audio files as commandline arguments.
 Example:
 
 ```
-python main.py ~/Music/Rap/ sample.mp3 ...
+tmpl2 ~/Music/Rap/ sample.mp3 ...
 ```
 
 ## Keybindings

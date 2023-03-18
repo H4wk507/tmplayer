@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
+
 import argparse
+import os
+import sys
 from typing import Sequence
 
 import urwid
 
-from ui import playerUI
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from tmpl.ui import playerUI
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

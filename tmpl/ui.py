@@ -1,10 +1,13 @@
 import argparse
+import os
+import sys
 from threading import Thread
 from typing import Callable
 
 import urwid
 
-from player import Player
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from .player import Player
 
 
 class customProgressBar(urwid.ProgressBar):

@@ -1,11 +1,14 @@
 import argparse
 import logging
+import os
+import sys
 from pathlib import Path
 from time import sleep
 
 import vlc
 
-from utils import format_time
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from tmpl.utils import format_time
 
 logging.basicConfig(filename="myapp.log", level=logging.INFO)
 
