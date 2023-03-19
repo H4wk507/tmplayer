@@ -7,12 +7,18 @@ from typing import Sequence
 
 import urwid
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from tmpl.ui import playerUI
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tmpl.ui import PlayerUI
+from tmpl.version import __version__
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+    )
     parser.add_argument(
         "paths",
         metavar="PATH",
@@ -25,11 +31,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    player = playerUI(args)
+    ui = PlayerUI(args)
     loop = urwid.MainLoop(
-        player.draw_ui(), player.palette, unhandled_input=player.handle_keys
+        ui.draw_ui(), ui.palette, unhandled_input=ui.handle_keys
     )
-    loop.set_alarm_in(0.5, player.update_name)
+    loop.set_alarm_in(0, ui.main)
     loop.run()
     return 0
 
