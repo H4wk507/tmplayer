@@ -40,6 +40,7 @@ tmpl2 ~/Music/Rap/ sample.mp3 ...
 - enter: Play selected song
 - space: Play/Pause
 - n: Play next song
+- p: Play previous song
 - u: Increase volume by 5%
 - d: Decrease volume by 5%
 - q: Quit

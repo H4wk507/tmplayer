@@ -22,21 +22,13 @@ class selectableText(urwid.Text):
         return True
 
     def keypress(self, _, key: str) -> str:  # type: ignore
-        global LIST_LOCK
-        if key == "enter":
-            LIST_LOCK = False
         return key
-
-
-LIST_LOCK = True
 
 
 class PlayerUI:
     border: list[str]
     pallete: list[tuple[str, str, str]]
-    ui_object: urwid.Padding | None
-    list_updated: bool
-    play_pause_lock: bool
+    paused: bool
     music_player: Player
     key_dict: dict[str, Callable[[], None]]
     time_text: urwid.Text
@@ -47,7 +39,6 @@ class PlayerUI:
     playlistbox: urwid.ListBox
     pb: progressBar
     pb_text: urwid.Text
-    player_ui_object: urwid.LineBox
 
     def __init__(self, args: argparse.Namespace):
         self.border = ["╔", "═", "║", "╗", "╚", "║", "═", "╝"]
@@ -57,17 +48,19 @@ class PlayerUI:
             ("highlight", "black", "light blue"),
             ("bg", "black", "dark blue"),
         ]
-        self.play_pause_lock = False
+        self.paused = False
         self.music_player = Player(args)
         self.key_dict = {
             "n": self.music_player.play_next,
+            "p": self.music_player.play_prev,
             "u": self.volume_up,
             "d": self.volume_down,
-            " ": self.music_player.change_player_state,
+            " ": self.change_player_state,
+            "enter": self.on_enter_pressed,
         }
 
     def draw_ui(self) -> urwid.Padding:
-        self.ui_object = self.get_player_ui()
+        ui_object = self.get_player_ui()
         list_data = self.music_player.get_list_data()
         zero_pad = len(str(len(list_data)))
         new_list = [
@@ -87,15 +80,15 @@ class PlayerUI:
         self.list[:] = new_list
         self.playlistbox.set_focus(0)
         self.start_playing()
-        return self.ui_object
+        return ui_object
 
     def get_player_ui(self) -> urwid.Padding:
         """Draw the main player UI."""
         header = self.get_header()
         body = self.get_body()
         footer = self.get_footer()
-        self.player_ui_object = urwid.Frame(body, header, footer)
-        return urwid.Padding(self.player_ui_object)
+        player_ui_object = urwid.Frame(body, header, footer)
+        return urwid.Padding(player_ui_object)
 
     def get_header(self) -> urwid.LineBox:
         vol = 100 // self.music_player.volume_step
@@ -152,55 +145,58 @@ class PlayerUI:
         except KeyError:
             pass
 
+    def volume_up(self) -> None:
+        self.music_player.volume_up()
+        self.update_volume_bar()
+
     def volume_down(self) -> None:
         self.music_player.volume_down()
         self.update_volume_bar()
 
-    def volume_up(self) -> None:
-        self.music_player.volume_up()
-        self.update_volume_bar()
+    def change_player_state(self) -> None:
+        self.paused = not self.paused
+        self.music_player.change_player_state()
+        curr_idx = self.music_player.curr_video_idx
+        self.song_text.set_text(
+            f"[Paused] {self.music_player.videos[curr_idx].title}"
+        )
+
+    def on_enter_pressed(self) -> None:
+        self.paused = False
+        self.music_player.enter_pressed_idx = self.playlistbox.focus_position
+        assert self.music_player.player is not None
+        self.music_player.player.play_item_at_index(
+            self.playlistbox.focus_position
+        )
 
     def update_volume_bar(self) -> None:
         vol = self.music_player.volume // self.music_player.volume_step
         vol_complement = 100 // self.music_player.volume_step - vol
         self.volume_text.set_text(f"Volume: {vol*'█'}{vol_complement*'░'}")
 
-    def main(self, loop, _) -> None:  # type: ignore
-        global LIST_LOCK
-        if not self.play_pause_lock:
+    def main(self, loop: urwid.MainLoop, _) -> None:  # type: ignore
+        if not self.paused:
+            curr_idx = self.music_player.curr_video_idx
             self.song_text.set_text(
-                "Playing:"
-                f" {self.music_player.videos[self.music_player.curr_video_idx].title}"
+                f"Playing: {self.music_player.videos[curr_idx].title}"
             )
+
         td = self.music_player.get_time_details()
         self.pb.set_completion(td.percentage)
         self.time_text.set_text(f"{td.curr_time}/{td.duration}")
         self.pb_text.set_text(f"{td.curr_time}/{td.duration}")
 
         if self.music_player.prev_video_idx is not None:
-            # unmark
             self.list[self.music_player.prev_video_idx].set_attr_map(
                 {"highlight": None}
             )
-        # mark
         self.list[self.music_player.curr_video_idx].set_attr_map(
             {None: "highlight"}
         )
 
         if self.music_player.song_changed:
-            self.playlistbox.set_focus(
-                self.music_player.curr_video_idx, coming_from=None
-            )
+            self.playlistbox.set_focus(self.music_player.curr_video_idx)
             self.music_player.song_changed = False
-
-        if not LIST_LOCK:
-            LIST_LOCK = True
-            self.music_player.change_player_state()
-            self.music_player.on_song_changed(self.playlistbox.focus_position)
-            if self.music_player.player is not None:
-                self.music_player.player.play_item_at_index(
-                    self.playlistbox.focus_position
-                )
 
         # Call that function again in 0.1 seconds.
         loop.set_alarm_in(0.1, self.main)

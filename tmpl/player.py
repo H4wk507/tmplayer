@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -9,6 +10,9 @@ import vlc
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tmpl.utils import format_time
+
+LOGGER = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass
@@ -39,21 +43,25 @@ class Video:
 class Player:
     paths: list[Path]
     instance: vlc.Instance
-    playlist: vlc.MediaList
+    playlist: vlc.MediaList | None
+    player: vlc.MediaListPlayer | None
+    supported_formats: tuple[str, ...]
     videos: list[Video]
     song_changed: bool
     prev_video_idx: int | None
     curr_video_idx: int
     volume: int
     volume_step: int
-    player: vlc.MediaListPlayer | None
-    checked: bool  # TODO: better name?
+    prev_pressed: bool
+    next_pressed: bool
+    enter_pressed_idx: int | None
 
     def __init__(self, args: argparse.Namespace):
         self.paths = [Path(p) for p in args.paths]
         self.instance = vlc.Instance()
         self.instance.log_unset()
-        self.playlist = self.instance.media_list_new()
+        self.playlist = None
+        self.player = None
         self.supported_formats = (".mp3", ".flac")
         self.videos = self.gather_files()
         self.song_changed = False
@@ -61,9 +69,9 @@ class Player:
         self.curr_video_idx = 0
         self.volume = 50
         self.volume_step = 5
-
-        self.player = None
-        self.checked = False
+        self.prev_pressed = False
+        self.next_pressed = False
+        self.enter_pressed_idx = None
 
     def gather_files(self) -> list[Video]:
         """Gather all files provided in args into a single list."""
@@ -74,7 +82,7 @@ class Player:
             elif path.is_file():
                 self.gather_file(path, files)
         if len(files) == 0:
-            print("Could not parse any files.")
+            LOGGER.error("Could not parse any files.")
             sys.exit(1)
         else:
             return files
@@ -96,17 +104,11 @@ class Player:
         self.init_playlist()
         assert self.player is not None
         self.player.play()
-        # wait for playlist to open
-        while self.player.get_state() != vlc.State.Playing:
-            sleep(0.1)
-        # wait till the end of the playlist
-        while self.player.get_state() not in (
-            vlc.State.Ended,
-            vlc.State.Stopped,
-        ):
-            sleep(1)
+        self.wait_for_open()
+        self.wait_for_end()
 
     def init_playlist(self) -> None:
+        self.playlist = self.instance.media_list_new()
         for video in self.videos:
             media = self.instance.media_new(video.path.as_posix())
             self.playlist.add_media(media)
@@ -122,20 +124,45 @@ class Player:
             lambda _: self.on_song_changed(),
         )
 
-    def on_song_changed(self, idx: int | None = None) -> None:
-        # TODO: reformat this
-        if idx is not None:
+    def wait_for_open(self) -> None:
+        """Wait for the playlist to open."""
+        assert self.player is not None
+        while self.player.get_state() != vlc.State.Playing:
+            sleep(0.1)
+
+    def wait_for_end(self) -> None:
+        """Wait for the playlist to end."""
+        assert self.player is not None
+        while self.player.get_state() not in (
+            vlc.State.Ended,
+            vlc.State.Stopped,
+        ):
+            sleep(1)
+
+    def on_song_changed(self) -> None:
+        if self.enter_pressed_idx is not None:
             self.prev_video_idx = self.curr_video_idx
-            self.curr_video_idx = idx
-            self.checked = True
-        elif self.prev_video_idx is not None and not self.checked:
+            self.curr_video_idx = self.enter_pressed_idx
+            self.enter_pressed_idx = None
+        elif self.next_pressed:
             self.prev_video_idx = self.curr_video_idx
             self.curr_video_idx += 1
-        elif self.prev_video_idx is None and not self.checked:
-            self.prev_video_idx = -1
+            self.next_pressed = False
+        elif self.prev_pressed:
+            self.prev_video_idx = self.curr_video_idx
+            self.curr_video_idx -= 1
+            self.prev_pressed = False
+        elif self.prev_video_idx is not None:
+            self.prev_video_idx = self.curr_video_idx
+            self.curr_video_idx += 1
         else:
-            self.checked = False
+            self.prev_video_idx = self.curr_video_idx
         self.song_changed = True
+
+    def play_prev(self) -> None:
+        if self.player is not None and self.curr_video_idx > 0:
+            self.prev_pressed = True
+            self.player.previous()
 
     def get_time_details(self) -> TimeDetails:
         total_seconds = self.videos[self.curr_video_idx].duration
@@ -161,6 +188,7 @@ class Player:
             self.player is not None
             and self.curr_video_idx < len(self.videos) - 1
         ):
+            self.next_pressed = True
             self.player.next()
 
     def volume_up(self) -> None:
