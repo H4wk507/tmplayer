@@ -6,7 +6,6 @@ clean-cache:
 clean-build:
 	rm -rf build *.egg-info dist
 
-
 clean: clean-cache clean-build
 
 codetest:
