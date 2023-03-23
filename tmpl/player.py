@@ -10,7 +10,6 @@ from time import sleep
 import vlc
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tmpl.utils import format_time
 
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +43,7 @@ class Video:
 class Player:
     paths: list[Path]
     instance: vlc.Instance
-    player: vlc.MediaPlayer | None
+    player: vlc.MediaPlayer
     supported_formats: tuple[str, ...]
     videos: list[Video]
     song_changed: bool
@@ -60,7 +59,7 @@ class Player:
         self.paths = [Path(p) for p in args.paths]
         self.instance = vlc.Instance()
         self.instance.log_unset()
-        self.player = None
+        # TODO: support more formats
         self.supported_formats = (".mp3", ".flac")
         self.videos = self.gather_files()
         self.song_changed = False
@@ -68,7 +67,8 @@ class Player:
         self.curr_video_idx = 0
         self.volume = 50
         self.volume_step = 5
-
+        self.player = vlc.MediaPlayer()
+        self.player.audio_set_volume(self.volume)
         self.random_mode = False
         self.loop_mode = False
         self.repeat_mode = False
@@ -94,47 +94,50 @@ class Player:
 
     def gather_file(self, path: Path, files: list[Video]) -> None:
         if path.suffix in self.supported_formats:
-            m = self.instance.media_new(path.as_posix())
-            m.parse_with_options(1, 0)
-            while m.get_parsed_status() != vlc.MediaParsedStatus.done:
-                pass
-            files.append(Video(path, round(m.get_duration() / 1000)))
+            duration_ms = self.get_file_duration(path)
+            files.append(Video(path, round(duration_ms / 1000)))
+
+    def get_file_duration(self, path: Path) -> int:
+        """Get file duration in ms."""
+        m = self.instance.media_new(path.as_posix())
+        m.parse_with_options(1, 0)
+        while m.get_parsed_status() != vlc.MediaParsedStatus.done:
+            pass
+        return m.get_duration()  # type: ignore
 
     def play(self) -> None:
-        self.player = vlc.MediaPlayer()
-        self.player.audio_set_volume(self.volume)
         while self.curr_video_idx < len(self.videos):
-            self.player.set_media(
-                self.instance.media_new(
-                    self.videos[self.curr_video_idx].path.as_posix()
-                )
-            )
+            self.set_player_media()
             self.player.play()
             self.wait_for_open()
             self.wait_for_end()
             if self.repeat_mode:
-                pass
+                continue
+            self.song_changed = True
+            self.prev_video_idx = self.curr_video_idx
+            if self.random_mode:
+                self.curr_video_idx = randint(0, len(self.videos) - 1)
+            elif self.loop_mode:
+                self.curr_video_idx += 1
+                self.curr_video_idx %= len(self.videos)
             else:
-                self.song_changed = True
-                self.prev_video_idx = self.curr_video_idx
-                if self.random_mode:
-                    self.curr_video_idx = randint(0, len(self.videos) - 1)
-                elif self.loop_mode:
-                    self.curr_video_idx = (self.curr_video_idx + 1) % len(
-                        self.videos
-                    )
-                else:
-                    self.curr_video_idx += 1
+                self.curr_video_idx += 1
         self.curr_video_idx -= 1
 
+    def set_player_media(self) -> None:
+        media = self.instance.media_new(
+            self.videos[self.curr_video_idx].path.as_posix()
+        )
+        self.player.set_media(media)
+
     def wait_for_open(self) -> None:
-        """Wait for the playlist to open."""
+        """Wait for the player to open."""
         assert self.player is not None
         while self.player.get_state() != vlc.State.Playing:
             sleep(0.1)
 
     def wait_for_end(self) -> None:
-        """Wait for the playlist to end."""
+        """Wait for the player to end."""
         assert self.player is not None
         while self.player.get_state() not in (
             vlc.State.Ended,
@@ -150,26 +153,35 @@ class Player:
             else 0
         )
         return TimeDetails(
-            format_time(total_seconds),
-            format_time(curr_seconds),
+            Player.format_time(total_seconds),
+            Player.format_time(curr_seconds),
             (curr_seconds / total_seconds) * 100 if total_seconds != 0 else 0,
         )
 
     def get_list_data(self) -> list[ListData]:
         return [
-            ListData(idx, format_time(video.duration), video.title)
+            ListData(idx, Player.format_time(video.duration), video.title)
             for idx, video in enumerate(self.videos, 1)
         ]
+
+    @staticmethod
+    def format_time(seconds: int) -> str:
+        """Format time in seconds to a string."""
+        hours = seconds // 3600
+        seconds = seconds % 3600
+        minutes = seconds // 60
+        seconds = seconds % 60
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
 
     def volume_up(self) -> None:
         if self.player is not None and self.volume < 100:
             self.volume += self.volume_step
-            self.player.get_media_player().audio_set_volume(self.volume)
+            self.player.audio_set_volume(self.volume)
 
     def volume_down(self) -> None:
         if self.player is not None and self.volume > 0:
             self.volume -= self.volume_step
-            self.player.get_media_player().audio_set_volume(self.volume)
+            self.player.audio_set_volume(self.volume)
 
     def change_player_state(self) -> None:
         if self.player is not None and self.player.get_state() in (

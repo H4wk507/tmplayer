@@ -27,8 +27,8 @@ class selectableText(urwid.Text):
 
 
 class PlayerUI:
-    border: list[str]
-    pallete: list[tuple[str, str, str]]
+    border: tuple[str, ...]
+    pallete: tuple[tuple[str, str, str]]
     paused: bool
     music_player: Player
     key_dict: dict[str, Callable[[], None]]
@@ -42,13 +42,13 @@ class PlayerUI:
     pb_text: urwid.Text
 
     def __init__(self, args: argparse.Namespace):
-        self.border = ["╔", "═", "║", "╗", "╚", "║", "═", "╝"]
-        self.palette = [
+        self.border = ("╔", "═", "║", "╗", "╚", "║", "═", "╝")
+        self.palette = (
             ("reversed", "standout", ""),
             ("b", "black", "dark gray"),
             ("highlight", "black", "light blue"),
             ("bg", "black", "dark blue"),
-        ]
+        )
         self.paused = False
         self.music_player = Player(args)
         self.key_dict = {
@@ -57,8 +57,9 @@ class PlayerUI:
             "u": self.volume_up,
             "d": self.volume_down,
             "r": self.toggle_random_mode,
-            "1": self.toggle_loop_mode,
-            "2": self.toggle_repeat_mode,
+            "1": self.toggle_default_mode,
+            "2": self.toggle_loop_mode,
+            "3": self.toggle_repeat_mode,
             " ": self.change_player_state,
             "enter": self.on_enter_pressed,
         }
@@ -106,6 +107,7 @@ class PlayerUI:
             [self.time_text, self.song_text, self.mode_text, self.volume_text]
         )
         head_pile = urwid.Pile([(1, urwid.Filler(cols, valign="top"))])
+        # TODO: experiment with this
         # head_pile = urwid.Pile([cols])
         header = urwid.LineBox(head_pile, "tmpl", "center", None, *self.border)
         return header
@@ -150,29 +152,33 @@ class PlayerUI:
             pass
 
     def play_prev(self) -> None:
-        if self.music_player.curr_video_idx > 0:
-            self.on_new_song()
-            if self.music_player.random_mode:
-                self.music_player.curr_video_idx = randint(
-                    0, len(self.music_player.videos) - 1
-                )
-            else:
-                self.music_player.curr_video_idx -= 1
-            self.play_new()
+        """Play the previous song."""
+        if self.music_player.curr_video_idx == 0:
+            return
+        self.on_new_song()
+        if self.music_player.random_mode:
+            self.music_player.curr_video_idx = randint(
+                0, len(self.music_player.videos) - 1
+            )
+        else:
+            self.music_player.curr_video_idx -= 1
+        self.play_new()
 
     def play_next(self) -> None:
+        """Play the next song."""
         if (
             self.music_player.curr_video_idx
-            < len(self.music_player.videos) - 1
+            == len(self.music_player.videos) - 1
         ):
-            self.on_new_song()
-            if self.music_player.random_mode:
-                self.music_player.curr_video_idx = randint(
-                    0, len(self.music_player.videos) - 1
-                )
-            else:
-                self.music_player.curr_video_idx += 1
-            self.play_new()
+            return
+        self.on_new_song()
+        if self.music_player.random_mode:
+            self.music_player.curr_video_idx = randint(
+                0, len(self.music_player.videos) - 1
+            )
+        else:
+            self.music_player.curr_video_idx += 1
+        self.play_new()
 
     def on_enter_pressed(self) -> None:
         self.on_new_song()
@@ -187,16 +193,11 @@ class PlayerUI:
         self.music_player.prev_video_idx = self.music_player.curr_video_idx
 
     def play_new(self) -> None:
+        """Play the next song currently at curr_video_idx."""
         self.music_player.song_changed = True
         assert self.music_player.player is not None
         self.music_player.player.stop()
-        self.music_player.player.set_media(
-            self.music_player.instance.media_new(
-                self.music_player.videos[
-                    self.music_player.curr_video_idx
-                ].path.as_posix()
-            )
-        )
+        self.music_player.set_player_media()
         self.music_player.player.play()
 
     def volume_up(self) -> None:
@@ -209,6 +210,12 @@ class PlayerUI:
 
     def toggle_random_mode(self) -> None:
         self.music_player.random_mode = not self.music_player.random_mode
+        self.change_mode_text()
+
+    def toggle_default_mode(self) -> None:
+        self.music_player.random_mode = False
+        self.music_player.loop_mode = False
+        self.music_player.repeat_mode = False
         self.change_mode_text()
 
     def toggle_loop_mode(self) -> None:
@@ -235,12 +242,9 @@ class PlayerUI:
         self.mode_text.set_text(text)
 
     def change_player_state(self) -> None:
+        """Handle the pause/play button press."""
         self.paused = not self.paused
         self.music_player.change_player_state()
-        curr_idx = self.music_player.curr_video_idx
-        self.song_text.set_text(
-            f"[Paused] {self.music_player.videos[curr_idx].title}"
-        )
 
     # TODO: change volume bar to % instead of █░?
     def update_volume_bar(self) -> None:
@@ -249,8 +253,12 @@ class PlayerUI:
         self.volume_text.set_text(f"Volume: {vol*'█'}{vol_complement*'░'}")
 
     def main(self, loop: urwid.MainLoop, _) -> None:  # type: ignore
-        if not self.paused:
-            curr_idx = self.music_player.curr_video_idx
+        curr_idx = self.music_player.curr_video_idx
+        if self.paused:
+            self.song_text.set_text(
+                f"[Paused] {self.music_player.videos[curr_idx].title}"
+            )
+        else:
             self.song_text.set_text(
                 f"Playing: {self.music_player.videos[curr_idx].title}"
             )

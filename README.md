@@ -34,13 +34,17 @@ Example:
 tmpl2 ~/Music/Rap/ sample.mp3 ...
 ```
 
-## Keybindings
+## Key bindings
 
 - arrow keys: Navigate
 - enter: Play selected song
 - space: Play/Pause
-- n: Play next song
-- p: Play previous song
+- n: Play the next song
+- p: Play the previous song
+- 1: Set default mode
+- 2: Set loop mode
+- 3: Set repeat mode
+- r: Set random mode
 - u: Increase volume by 5%
 - d: Decrease volume by 5%
 - q: Quit
