@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from random import randint
 from threading import Thread
 from typing import Callable
 
@@ -51,10 +52,13 @@ class PlayerUI:
         self.paused = False
         self.music_player = Player(args)
         self.key_dict = {
-            "n": self.music_player.play_next,
-            "p": self.music_player.play_prev,
+            "n": self.play_next,
+            "p": self.play_prev,
             "u": self.volume_up,
             "d": self.volume_down,
+            "r": self.toggle_random_mode,
+            "1": self.toggle_loop_mode,
+            "2": self.toggle_repeat_mode,
             " ": self.change_player_state,
             "enter": self.on_enter_pressed,
         }
@@ -94,7 +98,7 @@ class PlayerUI:
         vol = 100 // self.music_player.volume_step
         self.time_text = urwid.Text("--/--")
         self.song_text = urwid.Text("Playing: None", "center")
-        self.mode_text = urwid.Text("Mode: Repeat off", "right")
+        self.mode_text = urwid.Text("Mode: Default", "right")
         self.volume_text = urwid.Text(
             f"Volume: {vol//2*'█'}{vol//2*'░'}", "right"
         )
@@ -145,6 +149,56 @@ class PlayerUI:
         except KeyError:
             pass
 
+    def play_prev(self) -> None:
+        if self.music_player.curr_video_idx > 0:
+            self.on_new_song()
+            if self.music_player.random_mode:
+                self.music_player.curr_video_idx = randint(
+                    0, len(self.music_player.videos) - 1
+                )
+            else:
+                self.music_player.curr_video_idx -= 1
+            self.play_new()
+
+    def play_next(self) -> None:
+        if (
+            self.music_player.curr_video_idx
+            < len(self.music_player.videos) - 1
+        ):
+            self.on_new_song()
+            if self.music_player.random_mode:
+                self.music_player.curr_video_idx = randint(
+                    0, len(self.music_player.videos) - 1
+                )
+            else:
+                self.music_player.curr_video_idx += 1
+            self.play_new()
+
+    def on_enter_pressed(self) -> None:
+        self.on_new_song()
+        self.music_player.curr_video_idx = self.playlistbox.focus_position
+        self.play_new()
+
+    def on_new_song(self) -> None:
+        self.paused = False
+        self.music_player.repeat_mode = False
+        self.music_player.loop_mode = False
+        self.change_mode_text()
+        self.music_player.prev_video_idx = self.music_player.curr_video_idx
+
+    def play_new(self) -> None:
+        self.music_player.song_changed = True
+        assert self.music_player.player is not None
+        self.music_player.player.stop()
+        self.music_player.player.set_media(
+            self.music_player.instance.media_new(
+                self.music_player.videos[
+                    self.music_player.curr_video_idx
+                ].path.as_posix()
+            )
+        )
+        self.music_player.player.play()
+
     def volume_up(self) -> None:
         self.music_player.volume_up()
         self.update_volume_bar()
@@ -152,6 +206,33 @@ class PlayerUI:
     def volume_down(self) -> None:
         self.music_player.volume_down()
         self.update_volume_bar()
+
+    def toggle_random_mode(self) -> None:
+        self.music_player.random_mode = not self.music_player.random_mode
+        self.change_mode_text()
+
+    def toggle_loop_mode(self) -> None:
+        self.music_player.loop_mode = not self.music_player.loop_mode
+        self.music_player.repeat_mode = False
+        self.change_mode_text()
+
+    def toggle_repeat_mode(self) -> None:
+        self.music_player.repeat_mode = not self.music_player.repeat_mode
+        self.music_player.loop_mode = False
+        self.change_mode_text()
+
+    def change_mode_text(self) -> None:
+        options = []
+        if self.music_player.random_mode:
+            options.append("Random")
+        if self.music_player.repeat_mode:
+            options.append("Repeat")
+        if self.music_player.loop_mode:
+            options.append("Loop")
+        if len(options) == 0:
+            options.append("Default")
+        text = "Mode: " + " & ".join(options)
+        self.mode_text.set_text(text)
 
     def change_player_state(self) -> None:
         self.paused = not self.paused
@@ -161,14 +242,7 @@ class PlayerUI:
             f"[Paused] {self.music_player.videos[curr_idx].title}"
         )
 
-    def on_enter_pressed(self) -> None:
-        self.paused = False
-        self.music_player.enter_pressed_idx = self.playlistbox.focus_position
-        assert self.music_player.player is not None
-        self.music_player.player.play_item_at_index(
-            self.playlistbox.focus_position
-        )
-
+    # TODO: change volume bar to % instead of █░?
     def update_volume_bar(self) -> None:
         vol = self.music_player.volume // self.music_player.volume_step
         vol_complement = 100 // self.music_player.volume_step - vol

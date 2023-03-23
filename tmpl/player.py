@@ -4,6 +4,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from random import randint
 from time import sleep
 
 import vlc
@@ -43,8 +44,7 @@ class Video:
 class Player:
     paths: list[Path]
     instance: vlc.Instance
-    playlist: vlc.MediaList | None
-    player: vlc.MediaListPlayer | None
+    player: vlc.MediaPlayer | None
     supported_formats: tuple[str, ...]
     videos: list[Video]
     song_changed: bool
@@ -52,15 +52,14 @@ class Player:
     curr_video_idx: int
     volume: int
     volume_step: int
-    prev_pressed: bool
-    next_pressed: bool
-    enter_pressed_idx: int | None
+    random_mode: bool
+    loop_mode: bool
+    repeat_mode: bool
 
     def __init__(self, args: argparse.Namespace):
         self.paths = [Path(p) for p in args.paths]
         self.instance = vlc.Instance()
         self.instance.log_unset()
-        self.playlist = None
         self.player = None
         self.supported_formats = (".mp3", ".flac")
         self.videos = self.gather_files()
@@ -69,9 +68,10 @@ class Player:
         self.curr_video_idx = 0
         self.volume = 50
         self.volume_step = 5
-        self.prev_pressed = False
-        self.next_pressed = False
-        self.enter_pressed_idx = None
+
+        self.random_mode = False
+        self.loop_mode = False
+        self.repeat_mode = False
 
     def gather_files(self) -> list[Video]:
         """Gather all files provided in args into a single list."""
@@ -101,28 +101,31 @@ class Player:
             files.append(Video(path, round(m.get_duration() / 1000)))
 
     def play(self) -> None:
-        self.init_playlist()
-        assert self.player is not None
-        self.player.play()
-        self.wait_for_open()
-        self.wait_for_end()
-
-    def init_playlist(self) -> None:
-        self.playlist = self.instance.media_list_new()
-        for video in self.videos:
-            media = self.instance.media_new(video.path.as_posix())
-            self.playlist.add_media(media)
-        self.init_player()
-
-    def init_player(self) -> None:
-        self.player = self.instance.media_list_player_new()
-        self.player.set_media_list(self.playlist)
-        self.player.get_media_player().audio_set_volume(self.volume)
-        player_events = self.player.event_manager()
-        player_events.event_attach(
-            vlc.EventType.MediaListPlayerNextItemSet,
-            lambda _: self.on_song_changed(),
-        )
+        self.player = vlc.MediaPlayer()
+        self.player.audio_set_volume(self.volume)
+        while self.curr_video_idx < len(self.videos):
+            self.player.set_media(
+                self.instance.media_new(
+                    self.videos[self.curr_video_idx].path.as_posix()
+                )
+            )
+            self.player.play()
+            self.wait_for_open()
+            self.wait_for_end()
+            if self.repeat_mode:
+                pass
+            else:
+                self.song_changed = True
+                self.prev_video_idx = self.curr_video_idx
+                if self.random_mode:
+                    self.curr_video_idx = randint(0, len(self.videos) - 1)
+                elif self.loop_mode:
+                    self.curr_video_idx = (self.curr_video_idx + 1) % len(
+                        self.videos
+                    )
+                else:
+                    self.curr_video_idx += 1
+        self.curr_video_idx -= 1
 
     def wait_for_open(self) -> None:
         """Wait for the playlist to open."""
@@ -139,35 +142,10 @@ class Player:
         ):
             sleep(1)
 
-    def on_song_changed(self) -> None:
-        if self.enter_pressed_idx is not None:
-            self.prev_video_idx = self.curr_video_idx
-            self.curr_video_idx = self.enter_pressed_idx
-            self.enter_pressed_idx = None
-        elif self.next_pressed:
-            self.prev_video_idx = self.curr_video_idx
-            self.curr_video_idx += 1
-            self.next_pressed = False
-        elif self.prev_pressed:
-            self.prev_video_idx = self.curr_video_idx
-            self.curr_video_idx -= 1
-            self.prev_pressed = False
-        elif self.prev_video_idx is not None:
-            self.prev_video_idx = self.curr_video_idx
-            self.curr_video_idx += 1
-        else:
-            self.prev_video_idx = self.curr_video_idx
-        self.song_changed = True
-
-    def play_prev(self) -> None:
-        if self.player is not None and self.curr_video_idx > 0:
-            self.prev_pressed = True
-            self.player.previous()
-
     def get_time_details(self) -> TimeDetails:
         total_seconds = self.videos[self.curr_video_idx].duration
         curr_seconds = (
-            round(self.player.get_media_player().get_time() / 1000)
+            round(self.player.get_time() / 1000)
             if self.player is not None
             else 0
         )
@@ -182,14 +160,6 @@ class Player:
             ListData(idx, format_time(video.duration), video.title)
             for idx, video in enumerate(self.videos, 1)
         ]
-
-    def play_next(self) -> None:
-        if (
-            self.player is not None
-            and self.curr_video_idx < len(self.videos) - 1
-        ):
-            self.next_pressed = True
-            self.player.next()
 
     def volume_up(self) -> None:
         if self.player is not None and self.volume < 100:
