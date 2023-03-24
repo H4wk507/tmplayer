@@ -29,6 +29,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+# TODO: add preview to README
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     ui = PlayerUI(args)

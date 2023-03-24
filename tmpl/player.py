@@ -56,11 +56,20 @@ class Player:
     repeat_mode: bool
 
     def __init__(self, args: argparse.Namespace):
+        # disable error output
+        os.environ["VLC_VERBOSE"] = "-1"
         self.paths = [Path(p) for p in args.paths]
         self.instance = vlc.Instance()
         self.instance.log_unset()
-        # TODO: support more formats
-        self.supported_formats = (".mp3", ".flac")
+        self.supported_formats = (
+            ".mp3",
+            ".flac",
+            ".m4a",
+            ".aac",
+            ".alac",
+            ".ogg",
+            ".wav",
+        )
         self.videos = self.gather_files()
         self.song_changed = False
         self.prev_video_idx = None
