@@ -40,6 +40,7 @@ setup(
     classifiers=[
         "Topic :: Multimedia :: Sound/Audio",
         "Environment :: Console",
+        "Operating System :: POSIX",
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
     ],
