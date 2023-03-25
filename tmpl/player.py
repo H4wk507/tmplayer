@@ -81,6 +81,7 @@ class Player:
         self.random_mode = False
         self.loop_mode = False
         self.repeat_mode = False
+        # self.played_indices = set()
 
     def gather_files(self) -> list[Video]:
         """Gather all files provided in args into a single list."""
@@ -115,6 +116,7 @@ class Player:
         return m.get_duration()  # type: ignore
 
     def play(self) -> None:
+        # TODO: handle modes like on youtube playlist
         while self.curr_video_idx < len(self.videos):
             self.set_player_media()
             self.player.play()

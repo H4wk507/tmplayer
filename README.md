@@ -1,6 +1,7 @@
 # tmpl
 
 Minimalist music player for audio files with a pleasant UI.
+![preview](./screenshots/preview.png)
 
 ## Installation
 

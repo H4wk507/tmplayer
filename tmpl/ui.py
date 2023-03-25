@@ -51,7 +51,6 @@ class PlayerUI:
         )
         self.paused = False
         self.music_player = Player(args)
-        # TODO: add (m)ute button
         self.key_dict = {
             "n": self.play_next,
             "p": self.play_prev,
@@ -107,8 +106,6 @@ class PlayerUI:
             [self.time_text, self.song_text, self.mode_text, self.volume_text]
         )
         head_pile = urwid.Pile([(1, urwid.Filler(cols, valign="top"))])
-        # TODO: experiment with this
-        # head_pile = urwid.Pile([cols])
         header = urwid.LineBox(head_pile, "tmpl", "center", None, *self.border)
         return header
 
@@ -125,7 +122,6 @@ class PlayerUI:
         body_pile = urwid.Pile(
             [
                 (1, urwid.Filler(heading, "top")),
-                (1, urwid.Filler(urwid.Divider())),
                 self.playlistbox,
             ]
         )
