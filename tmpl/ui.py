@@ -51,6 +51,7 @@ class PlayerUI:
         )
         self.paused = False
         self.music_player = Player(args)
+        # TODO: add (m)ute button
         self.key_dict = {
             "n": self.play_next,
             "p": self.play_prev,
@@ -96,12 +97,11 @@ class PlayerUI:
         return urwid.Padding(player_ui_object)
 
     def get_header(self) -> urwid.LineBox:
-        vol = 100 // self.music_player.volume_step
         self.time_text = urwid.Text("--/--")
         self.song_text = urwid.Text("Playing: None", "center")
         self.mode_text = urwid.Text("Mode: Default", "right")
         self.volume_text = urwid.Text(
-            f"Volume: {vol//2*'█'}{vol//2*'░'}", "right"
+            f"Volume: {self.music_player.volume}%/100%", "right"
         )
         cols = urwid.Columns(
             [self.time_text, self.song_text, self.mode_text, self.volume_text]
@@ -246,11 +246,8 @@ class PlayerUI:
         self.paused = not self.paused
         self.music_player.change_player_state()
 
-    # TODO: change volume bar to % instead of █░?
     def update_volume_bar(self) -> None:
-        vol = self.music_player.volume // self.music_player.volume_step
-        vol_complement = 100 // self.music_player.volume_step - vol
-        self.volume_text.set_text(f"Volume: {vol*'█'}{vol_complement*'░'}")
+        self.volume_text.set_text(f"Volume: {self.music_player.volume}%/100%")
 
     def main(self, loop: urwid.MainLoop, _) -> None:  # type: ignore
         curr_idx = self.music_player.curr_video_idx
