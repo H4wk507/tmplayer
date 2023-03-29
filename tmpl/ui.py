@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from random import randint
+from random import choice
 from threading import Thread
 from typing import Callable
 
@@ -149,13 +149,21 @@ class PlayerUI:
 
     def play_prev(self) -> None:
         """Play the previous song."""
-        if self.music_player.curr_video_idx == 0:
+        if (
+            self.music_player.curr_video_idx == 0
+            and not self.music_player.random_mode
+        ):
             return
+
         self.on_new_song()
         if self.music_player.random_mode:
-            self.music_player.curr_video_idx = randint(
-                0, len(self.music_player.videos) - 1
-            )
+            if self.music_player.idx < 0:
+                return
+            else:
+                self.music_player.idx -= 1
+                self.music_player.curr_video_idx = (
+                    self.music_player.played_indices[self.music_player.idx]
+                )
         else:
             self.music_player.curr_video_idx -= 1
         self.play_new()
@@ -165,19 +173,48 @@ class PlayerUI:
         if (
             self.music_player.curr_video_idx
             == len(self.music_player.videos) - 1
+            and not self.music_player.random_mode
         ):
             return
+
         self.on_new_song()
         if self.music_player.random_mode:
-            self.music_player.curr_video_idx = randint(
-                0, len(self.music_player.videos) - 1
-            )
+            if (
+                self.music_player.idx
+                == len(self.music_player.played_indices) - 1
+            ):
+                try:
+                    self.music_player.curr_video_idx = choice(
+                        [
+                            i
+                            for i in range(len(self.music_player.videos))
+                            if i
+                            not in self.music_player.played_indices
+                            + [self.music_player.curr_video_idx]
+                        ]
+                    )
+                    self.music_player.played_indices.append(
+                        self.music_player.curr_video_idx
+                    )
+                    self.music_player.idx += 1
+                except IndexError:
+                    return
+            else:
+                self.music_player.idx += 1
+                self.music_player.curr_video_idx = (
+                    self.music_player.played_indices[self.music_player.idx]
+                )
         else:
             self.music_player.curr_video_idx += 1
         self.play_new()
 
     def on_enter_pressed(self) -> None:
         self.on_new_song()
+        if self.music_player.random_mode:
+            self.music_player.played_indices.append(
+                self.music_player.curr_video_idx
+            )
+            self.music_player.idx += 1
         self.music_player.curr_video_idx = self.playlistbox.focus_position
         self.play_new()
 
@@ -207,6 +244,8 @@ class PlayerUI:
     def toggle_random_mode(self) -> None:
         self.music_player.random_mode = not self.music_player.random_mode
         self.change_mode_text()
+        self.music_player.played_indices = []
+        self.music_player.idx = -1
 
     def toggle_default_mode(self) -> None:
         self.music_player.random_mode = False

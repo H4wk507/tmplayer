@@ -4,7 +4,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from random import randint
+from random import choice
 from time import sleep
 
 import vlc
@@ -81,7 +81,9 @@ class Player:
         self.random_mode = False
         self.loop_mode = False
         self.repeat_mode = False
-        # self.played_indices = set()
+
+        self.played_indices: list[int] = []
+        self.idx = -1
 
     def gather_files(self) -> list[Video]:
         """Gather all files provided in args into a single list."""
@@ -116,7 +118,6 @@ class Player:
         return m.get_duration()  # type: ignore
 
     def play(self) -> None:
-        # TODO: handle modes like on youtube playlist
         while self.curr_video_idx < len(self.videos):
             self.set_player_media()
             self.player.play()
@@ -127,7 +128,26 @@ class Player:
             self.song_changed = True
             self.prev_video_idx = self.curr_video_idx
             if self.random_mode:
-                self.curr_video_idx = randint(0, len(self.videos) - 1)
+                self.played_indices.append(self.curr_video_idx)
+                self.idx += 1
+                try:
+                    self.curr_video_idx = choice(
+                        [
+                            i
+                            for i in range(len(self.videos))
+                            if i not in self.played_indices
+                        ]
+                    )
+                except IndexError:
+                    if self.loop_mode:
+                        self.played_indices = []
+                        self.idx = -1
+                        self.curr_video_idx = choice(
+                            [i for i in range(len(self.videos))]
+                        )
+                    else:
+                        self.curr_video_idx += 1
+                        break
             elif self.loop_mode:
                 self.curr_video_idx += 1
                 self.curr_video_idx %= len(self.videos)

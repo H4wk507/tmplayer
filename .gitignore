@@ -7,3 +7,4 @@ test_rich.py
 build/
 *.egg-info/
 dist/
+modes.txt
