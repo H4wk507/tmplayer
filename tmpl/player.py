@@ -130,24 +130,19 @@ class Player:
             if self.random_mode:
                 self.played_indices.append(self.curr_video_idx)
                 self.idx += 1
-                try:
-                    self.curr_video_idx = choice(
-                        [
-                            i
-                            for i in range(len(self.videos))
-                            if i not in self.played_indices
-                        ]
-                    )
-                except IndexError:
+                available_indices = self.get_available_indices()
+                if len(available_indices) == 0:
                     if self.loop_mode:
                         self.played_indices = []
                         self.idx = -1
                         self.curr_video_idx = choice(
-                            [i for i in range(len(self.videos))]
+                            self.get_available_indices()
                         )
                     else:
                         self.curr_video_idx += 1
                         break
+                else:
+                    self.curr_video_idx = choice(available_indices)
             elif self.loop_mode:
                 self.curr_video_idx += 1
                 self.curr_video_idx %= len(self.videos)
@@ -175,6 +170,11 @@ class Player:
             vlc.State.Stopped,
         ):
             sleep(1)
+
+    def get_available_indices(self) -> list[int]:
+        return [
+            i for i in range(len(self.videos)) if i not in self.played_indices
+        ]
 
     def get_time_details(self) -> TimeDetails:
         total_seconds = self.videos[self.curr_video_idx].duration

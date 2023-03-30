@@ -155,15 +155,15 @@ class PlayerUI:
         ):
             return
 
+        if self.music_player.random_mode and self.music_player.idx < 0:
+            return
+
         self.on_new_song()
         if self.music_player.random_mode:
-            if self.music_player.idx < 0:
-                return
-            else:
-                self.music_player.idx -= 1
-                self.music_player.curr_video_idx = (
-                    self.music_player.played_indices[self.music_player.idx]
-                )
+            self.music_player.idx -= 1
+            self.music_player.curr_video_idx = (
+                self.music_player.played_indices[self.music_player.idx]
+            )
         else:
             self.music_player.curr_video_idx -= 1
         self.play_new()
@@ -177,34 +177,34 @@ class PlayerUI:
         ):
             return
 
-        self.on_new_song()
         if self.music_player.random_mode:
             if (
                 self.music_player.idx
                 == len(self.music_player.played_indices) - 1
             ):
-                try:
-                    self.music_player.curr_video_idx = choice(
-                        [
-                            i
-                            for i in range(len(self.music_player.videos))
-                            if i
-                            not in self.music_player.played_indices
-                            + [self.music_player.curr_video_idx]
-                        ]
-                    )
-                    self.music_player.played_indices.append(
-                        self.music_player.curr_video_idx
-                    )
-                    self.music_player.idx += 1
-                except IndexError:
+                available_indices = [
+                    i
+                    for i in range(len(self.music_player.videos))
+                    if i
+                    not in self.music_player.played_indices
+                    + [self.music_player.curr_video_idx]
+                ]
+                if len(available_indices) == 0:
                     return
+                self.on_new_song()
+                self.music_player.curr_video_idx = choice(available_indices)
+                self.music_player.played_indices.append(
+                    self.music_player.curr_video_idx
+                )
+                self.music_player.idx += 1
             else:
+                self.on_new_song()
                 self.music_player.idx += 1
                 self.music_player.curr_video_idx = (
                     self.music_player.played_indices[self.music_player.idx]
                 )
         else:
+            self.on_new_song()
             self.music_player.curr_video_idx += 1
         self.play_new()
 
