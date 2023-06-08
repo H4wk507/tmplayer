@@ -39,6 +39,7 @@ tmplayer ~/Music/Rap/ sample.mp3 ...
 ## Key bindings
 
 - arrow keys: Navigate
+- k and j: Move up and down
 - enter: Play selected song
 - space: Play/Pause
 - n: Play the next song

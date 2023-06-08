@@ -26,6 +26,16 @@ class selectableText(urwid.Text):
         return key
 
 
+class PlaylistBox(urwid.ListBox):
+    KEY_MAP = {
+        "k": "up",
+        "j": "down",
+    }
+
+    def keypress(self, size, key: str):  # type: ignore
+        return super().keypress(size, self.KEY_MAP.get(key, key))
+
+
 class PlayerUI:
     border: tuple[str, ...]
     pallete: tuple[tuple[str, str, str]]
@@ -37,7 +47,7 @@ class PlayerUI:
     mode_text: urwid.Text
     volume_text: urwid.Text
     list: urwid.SimpleFocusListWalker
-    playlistbox: urwid.ListBox
+    playlistbox: PlaylistBox
     pb: progressBar
     pb_text: urwid.Text
 
@@ -120,7 +130,7 @@ class PlayerUI:
                 urwid.Text("Title"),
             ]
         )
-        self.playlistbox = urwid.ListBox(self.list)
+        self.playlistbox = PlaylistBox(self.list)
         body_pile = urwid.Pile(
             [
                 (1, urwid.Filler(heading, "top")),
