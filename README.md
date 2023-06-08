@@ -23,7 +23,7 @@ git clone https://github.com/H4wk507/tmplayer.git
 2. Go into the directory and install
 
 ```
-cd tmpl && pip install .
+cd tmplayer && pip install .
 ```
 
 ## Usage
