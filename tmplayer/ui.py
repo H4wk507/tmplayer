@@ -3,7 +3,7 @@ import os
 import sys
 from random import choice
 from threading import Thread
-from typing import Callable
+from typing import Any, Callable
 
 import urwid
 
@@ -22,7 +22,7 @@ class selectableText(urwid.Text):
     def selectable(self) -> bool:
         return True
 
-    def keypress(self, _, key: str) -> str:  # type: ignore
+    def keypress(self, _: Any, key: str) -> str:
         return key
 
 
@@ -32,7 +32,7 @@ class PlaylistBox(urwid.ListBox):
         "j": "down",
     }
 
-    def keypress(self, size, key: str):  # type: ignore
+    def keypress(self, size: Any, key: str) -> Any:
         return super().keypress(size, self.KEY_MAP.get(key, key))
 
 
@@ -73,6 +73,8 @@ class PlayerUI:
             " ": self.change_player_state,
             "enter": self.on_enter_pressed,
         }
+        self.start = 0
+        self.end = 25
 
     def draw_ui(self) -> urwid.Padding:
         ui_object = self.get_player_ui()
@@ -296,17 +298,24 @@ class PlayerUI:
     def update_volume_bar(self) -> None:
         self.volume_text.set_text(f"Volume: {self.music_player.volume}%/100%")
 
-    def main(self, loop: urwid.MainLoop, _) -> None:  # type: ignore
+    def update_song_title(self, loop: urwid.MainLoop, _: Any) -> None:
+        """If the song title is too long, scroll it to
+        the right one character at a time every 0.5s."""
         curr_idx = self.music_player.curr_video_idx
-        if self.paused:
-            self.song_text.set_text(
-                f"[Paused] {self.music_player.videos[curr_idx].title}"
-            )
-        else:
-            self.song_text.set_text(
-                f"Playing: {self.music_player.videos[curr_idx].title}"
-            )
+        curr_title = self.music_player.videos[curr_idx].title
+        self.song_text.set_text(
+            f"[Paused] {curr_title[self.start:self.end]}"
+            if self.paused
+            else f"Playing: {curr_title[self.start:self.end]}"
+        )
+        self.end += 1
+        self.start += 1
+        if self.end > len(curr_title):
+            self.end -= self.start
+            self.start = 0
+        loop.set_alarm_in(0.5, self.update_song_title)
 
+    def _main(self, loop: urwid.MainLoop, _: Any) -> None:
         td = self.music_player.get_time_details()
         self.pb.set_completion(td.percentage)
         self.time_text.set_text(f"{td.curr_time}/{td.duration}")
@@ -323,6 +332,8 @@ class PlayerUI:
         if self.music_player.song_changed:
             self.playlistbox.set_focus(self.music_player.curr_video_idx)
             self.music_player.song_changed = False
+        loop.set_alarm_in(0.1, self._main)
 
-        # Call that function again in 0.1 seconds.
-        loop.set_alarm_in(0.1, self.main)
+    def main(self, loop: urwid.MainLoop, _: Any) -> None:
+        loop.set_alarm_in(0, self.update_song_title)
+        loop.set_alarm_in(0, self._main)
