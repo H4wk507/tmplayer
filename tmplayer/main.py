@@ -8,8 +8,8 @@ from typing import Sequence
 import urwid
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tmpl.ui import PlayerUI
-from tmpl.version import __version__
+from tmplayer.ui import PlayerUI
+from tmplayer.version import __version__
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

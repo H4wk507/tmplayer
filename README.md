@@ -1,4 +1,4 @@
-# tmpl
+# tmplayer
 
 Minimalist music player for audio files with a pleasant UI.
 
@@ -9,7 +9,7 @@ Minimalist music player for audio files with a pleasant UI.
 ### PyPI
 
 ```
-pip install tmpl2
+pip install tmplayer
 ```
 
 ### Manual
@@ -17,7 +17,7 @@ pip install tmpl2
 1. Clone the repository
 
 ```
-git clone https://github.com/H4wk507/tmpl.git
+git clone https://github.com/H4wk507/tmplayer.git
 ```
 
 2. Go into the directory and install
@@ -33,7 +33,7 @@ Pass in directories/audio files as commandline arguments.
 Example:
 
 ```
-tmpl2 ~/Music/Rap/ sample.mp3 ...
+tmplayer ~/Music/Rap/ sample.mp3 ...
 ```
 
 ## Key bindings

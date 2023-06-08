@@ -8,7 +8,7 @@ from typing import Callable
 import urwid
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tmpl.player import Player
+from tmplayer.player import Player
 
 
 class progressBar(urwid.ProgressBar):
@@ -106,7 +106,9 @@ class PlayerUI:
             [self.time_text, self.song_text, self.mode_text, self.volume_text]
         )
         head_pile = urwid.Pile([(1, urwid.Filler(cols, valign="top"))])
-        header = urwid.LineBox(head_pile, "tmpl", "center", None, *self.border)
+        header = urwid.LineBox(
+            head_pile, "tmplayer", "center", None, *self.border
+        )
         return header
 
     def get_body(self) -> urwid.LineBox:

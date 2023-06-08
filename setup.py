@@ -18,7 +18,7 @@ def read_version(fname: str) -> Any:
 
 directory = os.path.abspath(os.path.dirname(__file__))
 
-VERSION = read_version(os.path.join(directory, "tmpl", "version.py"))
+VERSION = read_version(os.path.join(directory, "tmplayer", "version.py"))
 
 DESCRIPTION = "Minimalist music player for audio files with a pleasant UI."
 
@@ -29,7 +29,7 @@ REQUIREMENTS = read_file(
 ).splitlines()
 
 setup(
-    name="tmpl2",
+    name="tmplayer",
     version=VERSION,
     description=DESCRIPTION,
     author="Piotr Skowroński",
@@ -46,7 +46,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "tmpl2=tmpl.main:main",
+            "tmplayer=tmplayer.main:main",
         ],
     },
     install_requires=REQUIREMENTS,
