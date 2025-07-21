@@ -98,7 +98,7 @@ class Player:
             return files
 
     def gather_dir(self, path: Path, files: list[Video]) -> None:
-        for pth in path.iterdir():
+        for pth in sorted(path.iterdir()):
             if pth.is_file():
                 self.gather_file(pth, files)
 
